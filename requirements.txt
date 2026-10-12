@@ -1,0 +1,5 @@
+numpy==2.1.0
+pandas==3.0.3
+scipy==1.18.1
+matplotlib==3.9.2
+pingouin==0.5.5

@@ -1,6 +1,6 @@
 # Análisis del contraste NetFlow/AIOps frente a monitoreo convencional
 
-Código de procesamiento y análisis estadístico de la tesis:
+Código de procesamiento y análisis estadístico de la investigación:
 
 > **Monitoreo con telemetría NetFlow y algoritmos AIOps frente al monitoreo convencional en la disponibilidad del acceso a servicios críticos de un laboratorio de un instituto superior de Arequipa, 2026**
 > Jonathan Vicente Alvarez Coloma · Ingeniería de Sistemas e Informática · Universidad Continental

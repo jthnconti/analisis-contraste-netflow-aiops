@@ -366,6 +366,8 @@ def main():
 
     ind = calcular_indicadores(fichas)
     pares = emparejar(ind)
+    if len(pares) < 3:
+        sys.exit(f"Solo hay {len(pares)} par(es) completo(s): Shapiro-Wilk y el contraste requieren al menos 3.")
     ind.to_csv(carpeta / f"{prefijo}indicadores_por_ejecucion.csv", index=False)
     pares.to_csv(carpeta / f"{prefijo}diferencias_pareadas.csv", index=False)
 

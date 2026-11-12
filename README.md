@@ -1,85 +1,71 @@
-# Análisis del contraste NetFlow/AIOps frente a monitoreo convencional
+# analisis-contraste-netflow-aiops
 
-Código de procesamiento y análisis estadístico de la investigación:
+Script en Python que procesa los registros de un experimento de monitoreo de red y aplica las pruebas estadísticas para comparar dos formas de detectar fallas: una basada en flujos NetFlow con un clasificador y otra basada en sondeo SNMP/ICMP. Acompaña una tesis de pregrado de ingeniería (Universidad Continental, 2026), que se cita aparte.
 
-> **Monitoreo con telemetría NetFlow y algoritmos AIOps frente al monitoreo convencional en la disponibilidad del acceso a servicios críticos de un laboratorio de un instituto superior de Arequipa, 2026**
-> Jonathan Vicente Alvarez Coloma · Ingeniería de Sistemas e Informática · Universidad Continental
+> ⚠️ El modo `--sintetico` genera datos inventados solo para probar el código. Sus archivos llevan el prefijo `SINTETICO_` y una marca en cada figura. No son datos del experimento.
 
-Es el Anexo 7 del documento. Implementa el plan de análisis del apartado 3.6 sobre los registros de la ficha I1 (una fila por ejecución) en un diseño experimental de medidas repetidas con contrabalanceo AB/BA (30 escenarios, 60 ejecuciones).
+## Funciones
 
-> ⚠️ **Los datos sintéticos de este repositorio solo sirven para comprobar que el código funciona. No son resultados del estudio.** Todas sus salidas llevan el prefijo `SINTETICO_` y una marca visible en las figuras.
+- Calcula, para cada corrida, el tiempo hasta la primera alerta (con un tope de espera), el tiempo hasta reponer el servicio desglosado en tres tramos y la proporción de tiempo en servicio.
+- Empareja las corridas de cada escenario y obtiene la diferencia entre ambas formas de monitoreo (positiva cuando gana la basada en flujos).
+- Elige la prueba según la forma de las diferencias: Shapiro-Wilk y luego t de Student pareada o Wilcoxon, en ambos casos de una cola.
+- Informa intervalo de confianza al 95 % y tamaño del efecto (d_z o r).
+- Compara cuántos escenarios detecta cada forma con McNemar (exacta con pocos pares discordantes).
+- Ajusta los valores p de las tres hipótesis con el método de Holm.
+- Revisa si el orden de las corridas influyó (AB frente a BA) y, si se le entrega ese archivo, también procesa lo ocurrido con tráfico real.
 
-## Qué hace
+## Verificaciones internas
 
-| Paso | Detalle | Ecuación del documento |
-|---|---|---|
-| Indicadores por ejecución | MTTD con censura en T_máx; tramos de localización (L), ejecución correctiva (E) y verificación (V); MTTR; uptime | (1), (2), (3), (7) |
-| Tasa de detección | Escenarios detectados dentro de T_máx por condición | (8) |
-| Diferencias pareadas | Por escenario, con signo positivo a favor de la condición NetFlow/AIOps | (9) |
-| Hipótesis | Prueba unilateral sobre la media de las diferencias (H1: μ_d > 0) | (10) |
-| Normalidad y prueba | Shapiro-Wilk; t pareada si hay normalidad, si no Wilcoxon de rangos con signo (aproximación normal con corrección de continuidad) | (11) |
-| Magnitud | IC 95 % de la diferencia media; d_z o r = Z/√N | (12), (13) |
-| Detección | McNemar exacta (binomial) si hay menos de 25 pares discordantes; chi-cuadrado con corrección en otro caso | (14) |
-| Comparaciones múltiples | Holm con m = 3 sobre HE 1 a HE 3 | (15) |
-| Complementos | Efecto de periodo (AB frente a BA) y fase en vivo (MTTD emparejado por evento) | — |
+- Antes de leer los datos corre un caso resuelto a mano; si cualquier valor no coincide, se detiene.
+- Cada prueba se calcula con SciPy y se repite con Pingouin; si los valores p difieren, se detiene.
+- Muestra el efecto mínimo detectable para el número de pares disponible.
 
-Controles de calidad:
+## Requisitos e instalación
 
-- **Autoprueba:** en cada ejecución se analiza primero un caso calculado a mano (censura, tramos, MTTR, uptime, signo de las diferencias, Holm y McNemar). Si algo no coincide, el script se detiene.
-- **Doble cálculo:** cada prueba se calcula con SciPy y se verifica con Pingouin. Si los valores p difieren, el script se detiene.
-- **Potencia:** reporta el efecto mínimo detectable con el n de pares (d_z = 0,465 con α = 0,05 y 0,564 con α = 0,05/3 para 30 pares).
-
-## Instalación
-
-Requiere Python 3.12 o superior.
+Python 3.12 o superior.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Uso
+## Ejemplos
 
-Prueba con datos sintéticos (semilla fija 20261011):
+Con datos de prueba (semilla 20261011):
 
 ```bash
 python scripts/analisis_contraste.py --sintetico
 ```
 
-Con los datos reales de la ficha I1 y, opcionalmente, la fase en vivo:
+Con los registros reales y, opcionalmente, los eventos en vivo:
 
 ```bash
 python scripts/analisis_contraste.py --datos fichas_I1.csv --vivo eventos_vivo.csv
 ```
 
-Las salidas van a `output/analisis_contraste/sintetico/` o `output/analisis_contraste/real/`:
+Los resultados quedan en `output/analisis_contraste/sintetico/` o `output/analisis_contraste/real/`: tablas CSV por corrida, por par y por hipótesis, un `resumen.md` y figuras sin título.
 
-- `indicadores_por_ejecucion.csv`, `diferencias_pareadas.csv`
-- `contraste_hipotesis.csv` (HE 1 a HE 3 con p ajustado por Holm), `contraste_tramos_mttr.csv`, `efecto_periodo.csv`
-- `resumen.md` con todas las tablas
-- Figuras sin título (el título va en la leyenda del documento): diferencias pareadas, MTTD por par y tasa de detección por tipo de anomalía
+## Formato de entrada
 
-## Formato de la ficha I1 (CSV)
+CSV con un registro por corrida y horas en UTC (ISO 8601). `plantilla_fichas_I1.csv` sirve de ejemplo.
 
-Una fila por ejecución. Las horas van en UTC con formato ISO 8601. `plantilla_fichas_I1.csv` trae las columnas con un par de ejemplo.
-
-| Columna | Contenido |
+| Campo | Significado |
 |---|---|
-| `escenario` | Número del escenario (1 a 30) |
-| `fase` | `principal` o `en vivo` (el contraste usa `principal`) |
-| `tipo`, `severidad`, `carga`, `servicio`, `segmento`, `operador`, `franja`, `ventana_fondo` | Factores y variables de control del par |
-| `condicion` | 0 = monitoreo convencional; 1 = NetFlow/AIOps |
-| `orden`, `periodo` | AB o BA; 1 o 2 |
-| `t_inicio`, `t_deteccion`, `t_localizacion`, `t_correccion`, `t_restauracion`, `t_fin` | Marcas de tiempo (vacío en `t_deteccion` si no hubo alerta) |
-| `fuente_deteccion` | Origen de la alerta |
-| `T_max_s`, `T_obs_s`, `T_indisp_s` | Ventana máxima de detección, ventana de observación y tiempo de indisponibilidad, en segundos |
-| `anulada` | `True` si la ejecución se anuló (se excluye) |
-| `incidencias` | Texto libre |
+| `escenario` | Identificador del escenario (1 a 30) |
+| `fase` | `principal` o `en vivo`; las pruebas usan solo `principal` |
+| `tipo`, `severidad`, `carga`, `servicio`, `segmento`, `operador`, `franja`, `ventana_fondo` | Características del escenario |
+| `condicion` | 0 = sondeo SNMP/ICMP; 1 = flujos con clasificador |
+| `orden`, `periodo` | Secuencia AB o BA; primera o segunda corrida |
+| `t_inicio`, `t_deteccion`, `t_localizacion`, `t_correccion`, `t_restauracion`, `t_fin` | Marcas de tiempo; `t_deteccion` vacía si no hubo alerta |
+| `fuente_deteccion` | Qué emitió la alerta |
+| `T_max_s`, `T_obs_s`, `T_indisp_s` | Tope de espera, ventana observada y tiempo sin servicio, en segundos |
+| `anulada` | `True` para descartar la corrida |
+| `incidencias` | Notas libres |
 
-La fase en vivo usa otro CSV con `evento, t_inicio, t_deteccion_0, t_deteccion_1, T_max_s`.
+Los eventos en vivo van en otro CSV con `evento, t_inicio, t_deteccion_0, t_deteccion_1, T_max_s`.
 
-## Cómo citar
+## Versión citada
 
-ALVAREZ COLOMA, Jonathan Vicente. *analisis-contraste-netflow-aiops* [software]. Versión 1.0. 2026. Disponible en: https://github.com/jthnconti/analisis-contraste-netflow-aiops
+La tesis usa la versión publicada como `v1.0` (commit `4f7377c`). Los cambios posteriores en este README no modifican el script.
 
 ## Licencia
 
